@@ -1,0 +1,26 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: pretix-emwallet\n"
+"Language: de\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgctxt "emwallet"
+msgid "Admission"
+msgstr "Einlass"
+
+msgctxt "emwallet"
+msgid "Location"
+msgstr "Ort"
+
+msgctxt "emwallet"
+msgid "Information"
+msgstr "Informationen"
+
+msgid "Website"
+msgstr "Website"
+
+msgid "Apple Wallet tickets with admission time, location and custom back information, configured via the event settings API."
+msgstr "Apple-Wallet-Tickets mit Einlasszeit, Ort und eigenen Infos auf der Rückseite, konfiguriert über die Event-Settings-API."

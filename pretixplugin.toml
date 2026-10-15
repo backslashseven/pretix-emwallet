@@ -1,0 +1,4 @@
+[plugin]
+package = "pretix-emwallet"
+modules = [ "pretix_emwallet" ]
+marketplace_name = "emwallet"

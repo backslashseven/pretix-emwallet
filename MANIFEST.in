@@ -1,0 +1,4 @@
+recursive-include pretix_emwallet/static *
+recursive-include pretix_emwallet/templates *
+recursive-include pretix_emwallet/locale *
+include LICENSE
