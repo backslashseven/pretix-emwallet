@@ -4,6 +4,13 @@ from pretix.base.i18n import language
 from pretix.base.models import OrderPosition
 from pretix.base.ticketoutput import BaseTicketOutput
 from pretix_passbook.passbook import PassbookOutput
+from wallet.models import Alignment, Field
+
+
+def _field(key: str, value: str, label: str, alignment: str = Alignment.LEFT) -> Field:
+    f = Field(key, value, label.upper())
+    f.textAlignment = alignment
+    return f
 
 
 def _pop_field(fields: list, key: str):
@@ -16,11 +23,11 @@ class EmWalletOutput(PassbookOutput):
     """
     Stock pretix-passbook pass with an EM specific layout:
 
-    header:     Einlass (admission time)
-    primary:    Event
-    secondary:  Produkt, Ort
-    auxiliary:  attendee / seat, From, To (unchanged)
-    back:       Ort with address, Informationen, website from EM (or none), no order details
+    header:     EINLASS (admission date and time)
+    primary:    VERANSTALTUNG
+    secondary:  NAME TEILNEHMER*IN | PRODUKT
+    auxiliary:  ORT | BEGINN
+    back:       Ort with address, Informationen, website from EM (or none)
     """
 
     identifier = "emwallet"
@@ -43,38 +50,46 @@ class EmWalletOutput(PassbookOutput):
         ev = order_position.subevent or order_position.order.event
         tz = self.event.timezone
         settings = self.event.settings
+        product = next((f.value for f in card.secondaryFields if f.key == "ticket"), str(order_position.item.name))
 
-        # Order details of pretix are not meaningful for guests: organizer account, buyer email, order code, purchase date
-        for key in ("organizer", "email", "orderCode", "purchaseDate"):
+        # The front is built from scratch (template of the customer), labels in capitals:
+        # header: EINLASS / primary: VERANSTALTUNG / NAME TEILNEHMER*IN | PRODUKT / ORT | BEGINN
+        card.headerFields = []
+        if ev.date_admission:
+            admission = ev.date_admission.astimezone(tz)
+            card.headerFields.append(_field("admission", "%s · %s" % (
+                date_format(admission, "d.m."), date_format(admission, "H:i")
+            ), pgettext("emwallet", "Admission"), Alignment.RIGHT))
+
+        for f in card.primaryFields:
+            f.label = f.label.upper()
+
+        card.secondaryFields = []
+        if order_position.attendee_name:
+            card.secondaryFields.append(_field("name", order_position.attendee_name, pgettext("emwallet", "Attendee name")))
+        card.secondaryFields.append(_field("ticket", product, gettext("Product"), Alignment.RIGHT))
+
+        location_lines = [line.strip() for line in str(ev.location or "").splitlines() if line.strip()]
+        card.auxiliaryFields = []
+        if location_lines:
+            card.auxiliaryFields.append(_field("location", location_lines[0], pgettext("emwallet", "Location")))
+        card.auxiliaryFields.append(_field("begin", pgettext("emwallet", "{time}").format(
+            time=date_format(ev.date_from.astimezone(tz), "H:i")
+        ), pgettext("emwallet", "Begin"), Alignment.RIGHT))
+
+        # Back: only what EM configures. The name is on the front, pretix order details are not meaningful for
+        # guests (organizer account, buyer email, order code, purchase date)
+        for key in ("name", "organizer", "email", "orderCode", "purchaseDate", "doorsAdmission", "doorsClose", "website"):
             _pop_field(card.backFields, key)
 
-        # Keys must be unique in the whole pass, pretix-passbook uses "name" on the front and the back
-        for f in card.backFields:
-            if f.key == "name":
-                f.key = "attendeeName"
-
-        # Admission time is shown in the header even without a custom logo
-        _pop_field(card.headerFields, "doorsAdmissionHeader")
-        _pop_field(card.backFields, "doorsAdmission")
-        if ev.date_admission:
-            card.addHeaderField(
-                "admission",
-                date_format(ev.date_admission.astimezone(tz), "SHORT_DATETIME_FORMAT"),
-                pgettext("emwallet", "Admission"),
-            )
-
-        location = str(ev.location or "").strip()
-        if location:
-            lines = [line.strip() for line in location.splitlines() if line.strip()]
-            card.addSecondaryField("location", lines[0], pgettext("emwallet", "Location"))
-            card.addBackField("locationFull", "\n".join(lines), pgettext("emwallet", "Location"))
+        if location_lines:
+            card.addBackField("locationFull", "\n".join(location_lines), pgettext("emwallet", "Location"))
 
         back_text = (settings.get("emwallet_back_text") or "").strip()
         if back_text:
             card.addBackField("emwalletInfo", back_text, pgettext("emwallet", "Information"))
 
-        # Replace the pretix shop URL, which is internal for EM events
-        _pop_field(card.backFields, "website")
+        # Replaces the pretix shop URL, which is internal for EM events
         website = (settings.get("emwallet_website_url") or "").strip()
         if website:
             card.addBackField("website", website, gettext("Website"))

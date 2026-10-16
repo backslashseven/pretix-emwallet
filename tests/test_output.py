@@ -34,26 +34,61 @@ def fields(position):
     }
 
 
+def labels(section):
+    return [(f["key"], f["label"], f["value"], f["textAlignment"]) for f in section.values()]
+
+
 @pytest.mark.django_db
 @scopes_disabled()
-def test_layout(position):
+def test_front_like_template(position):
+    position.attendee_name_parts = {"_legacy": "Erika Muster"}
+    position.save()
+    position.order.event.settings.emwallet_locale = "de"
+
+    f = fields(position)
+
+    # event in Europe/Berlin: admission 09:00 UTC = 10:00, begin 10:00 UTC = 11:00
+    assert labels(f["headerFields"]) == [("admission", "EINLASS", "27.12. · 10:00", "PKTextAlignmentRight")]
+    assert f["primaryFields"]["eventName"]["label"] == "VERANSTALTUNG"
+    assert labels(f["secondaryFields"]) == [
+        ("name", "NAME TEILNEHMER*IN", "Erika Muster", "PKTextAlignmentLeft"),
+        ("ticket", "PRODUKT", "Tagesticket", "PKTextAlignmentRight"),
+    ]
+    assert labels(f["auxiliaryFields"]) == [
+        ("location", "ORT", "Kraftwerk Berlin", "PKTextAlignmentLeft"),
+        ("begin", "BEGINN", "11:00 Uhr", "PKTextAlignmentRight"),
+    ]
+
+
+@pytest.mark.django_db
+@scopes_disabled()
+def test_back(position):
     event = position.order.event
     event.settings.emwallet_website_url = "https://example.org/eventmanagement/"
     event.settings.emwallet_back_text = "Garderobe im 1. OG"
 
+    back = fields(position)["backFields"]
+
+    assert list(back) == ["locationFull", "emwalletInfo", "website"]
+    assert back["locationFull"]["value"] == "Kraftwerk Berlin\nKöpenicker Str. 70\n10179 Berlin"
+    assert back["emwalletInfo"]["value"] == "Garderobe im 1. OG"
+    assert back["website"]["value"] == "https://example.org/eventmanagement/"
+
+
+@pytest.mark.django_db
+@scopes_disabled()
+def test_without_optional_values(position):
+    event = position.order.event
+    event.location = None
+    event.date_admission = None
+    event.save()
+
     f = fields(position)
 
-    assert f["headerFields"]["admission"]["label"] == "Admission"
-    assert "doorsAdmissionHeader" not in f["headerFields"]
-    assert "doorsAdmission" not in f["backFields"]
-    assert f["primaryFields"]["eventName"]["value"] == "Dummy"
-    assert f["secondaryFields"]["ticket"]["value"] == "Tagesticket"
-    assert f["secondaryFields"]["location"]["value"] == "Kraftwerk Berlin"
-    assert f["backFields"]["locationFull"]["value"] == "Kraftwerk Berlin\nKöpenicker Str. 70\n10179 Berlin"
-    assert f["backFields"]["emwalletInfo"]["value"] == "Garderobe im 1. OG"
-    assert f["backFields"]["website"]["value"] == "https://example.org/eventmanagement/"
-    for key in ("organizer", "email", "orderCode", "purchaseDate"):
-        assert key not in f["backFields"]
+    assert f["headerFields"] == {}
+    assert list(f["secondaryFields"]) == ["ticket"]
+    assert list(f["auxiliaryFields"]) == ["begin"]
+    assert f["backFields"] == {}
 
 
 @pytest.mark.django_db
@@ -63,22 +98,7 @@ def test_keys_unique(position):
     position.save()
     data = EmWalletOutput(position.order.event).generate_pass(position).passInformation.json_dict()
     keys = [f["key"] for section in data.values() for f in section]
-    assert "attendeeName" in keys
     assert len(keys) == len(set(keys))
-
-
-@pytest.mark.django_db
-@scopes_disabled()
-def test_no_website_and_german_labels(position):
-    position.order.event.settings.emwallet_locale = "de"
-
-    f = fields(position)
-
-    assert "website" not in f["backFields"]
-    assert "emwalletInfo" not in f["backFields"]
-    assert f["headerFields"]["admission"]["label"] == "Einlass"
-    assert f["secondaryFields"]["location"]["label"] == "Ort"
-    assert f["secondaryFields"]["ticket"]["label"] == "Produkt"
 
 
 @pytest.mark.django_db

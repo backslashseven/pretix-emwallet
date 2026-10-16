@@ -3,8 +3,9 @@ pretix EM Wallet
 
 Apple Wallet ticket output (``emwallet``) based on `pretix-passbook`_:
 
-* Header: admission time (``Event.date_admission``)
-* Front: event, product, location (first line of ``Event.location``)
+* Header: EINLASS, admission date and time (``Event.date_admission``)
+* Front, labels in capitals: VERANSTALTUNG, NAME TEILNEHMER*IN | PRODUKT, ORT (first line of
+  ``Event.location``) | BEGINN (start time)
 * Back: full location, free text (``emwallet_back_text``), website (``emwallet_website_url``,
   hidden if empty; replaces the pretix shop URL); no organizer, buyer email, order code or purchase date
 

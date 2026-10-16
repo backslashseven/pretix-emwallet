@@ -24,3 +24,15 @@ msgstr "Website"
 
 msgid "Apple Wallet tickets with admission time, location and custom back information, configured via the event settings API."
 msgstr "Apple-Wallet-Tickets mit Einlasszeit, Ort und eigenen Infos auf der Rückseite, konfiguriert über die Event-Settings-API."
+
+msgctxt "emwallet"
+msgid "Attendee name"
+msgstr "Name Teilnehmer*in"
+
+msgctxt "emwallet"
+msgid "Begin"
+msgstr "Beginn"
+
+msgctxt "emwallet"
+msgid "{time}"
+msgstr "{time} Uhr"
