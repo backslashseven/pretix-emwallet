@@ -20,7 +20,7 @@ class EmWalletOutput(PassbookOutput):
     primary:    Event
     secondary:  Produkt, Ort
     auxiliary:  attendee / seat, From, To (unchanged)
-    back:       Ort with address, Informationen, website from EM (or none)
+    back:       Ort with address, Informationen, website from EM (or none), no organizer
     """
 
     identifier = "emwallet"
@@ -43,6 +43,9 @@ class EmWalletOutput(PassbookOutput):
         ev = order_position.subevent or order_position.order.event
         tz = self.event.timezone
         settings = self.event.settings
+
+        # The organizer is the pretix organizer account, not meaningful for guests
+        _pop_field(card.backFields, "organizer")
 
         # Keys must be unique in the whole pass, pretix-passbook uses "name" on the front and the back
         for f in card.backFields:

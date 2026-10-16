@@ -52,6 +52,7 @@ def test_layout(position):
     assert f["backFields"]["locationFull"]["value"] == "Kraftwerk Berlin\nKöpenicker Str. 70\n10179 Berlin"
     assert f["backFields"]["emwalletInfo"]["value"] == "Garderobe im 1. OG"
     assert f["backFields"]["website"]["value"] == "https://example.org/eventmanagement/"
+    assert "organizer" not in f["backFields"]
 
 
 @pytest.mark.django_db
