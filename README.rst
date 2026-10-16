@@ -6,7 +6,7 @@ Apple Wallet ticket output (``emwallet``) based on `pretix-passbook`_:
 * Header: admission time (``Event.date_admission``)
 * Front: event, product, location (first line of ``Event.location``)
 * Back: full location, free text (``emwallet_back_text``), website (``emwallet_website_url``,
-  hidden if empty; replaces the pretix shop URL); no organizer
+  hidden if empty; replaces the pretix shop URL); no organizer, buyer email, order code or purchase date
 
 Images and colors use pretix-passbook's ``ticketoutput_passbook_*`` settings. All settings are
 exposed in ``/api/v1/organizers/{org}/events/{event}/settings/`` once the plugin is enabled for the
