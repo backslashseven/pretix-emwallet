@@ -92,8 +92,9 @@ def invalidate_on_version_change():
 
 @receiver(post_migrate, dispatch_uid="emwallet_post_migrate")
 def after_migrate(sender, **kwargs):
-    # pretix migrates on every container start (unless AUTOMIGRATE=skip)
-    if getattr(sender, "name", None) == PLUGIN:
+    # pretix migrates on every container start (unless AUTOMIGRATE=skip). Django only sends post_migrate for apps
+    # with models, this plugin has none, so react to the pretix core app
+    if getattr(sender, "label", None) == "pretixbase":
         invalidate_on_version_change()
 
 

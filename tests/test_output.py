@@ -150,3 +150,18 @@ def test_cached_passes_are_deleted_once_per_version(position):
     cache()
     invalidate_on_version_change()
     assert CachedTicket.objects.filter(provider="emwallet").count() == 1
+
+
+@pytest.mark.django_db
+@scopes_disabled()
+def test_migrate_triggers_version_check(position):
+    from django.apps import apps
+    from django.db.models.signals import post_migrate
+    from pretix.base.settings import GlobalSettingsObject
+
+    from pretix_emwallet import __version__
+
+    GlobalSettingsObject().settings.set("emwallet_cache_version", "0.0.1")
+    post_migrate.send(sender=apps.get_app_config("pretixbase"), app_config=apps.get_app_config("pretixbase"),
+                      verbosity=0, interactive=False, using="default", apps=apps, plan=[])
+    assert GlobalSettingsObject().settings.get("emwallet_cache_version") == __version__
