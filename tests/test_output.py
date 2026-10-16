@@ -123,3 +123,30 @@ def test_settings_api(event):
 
     resp = client.patch(url, {"ticketoutput_passbook_bg_color": "red"}, format="json")
     assert resp.status_code == 400
+
+
+@pytest.mark.django_db
+@scopes_disabled()
+def test_cached_passes_are_deleted_once_per_version(position):
+    from django.core.files.base import ContentFile
+    from pretix.base.models import CachedTicket
+    from pretix.base.settings import GlobalSettingsObject
+
+    from pretix_emwallet import __version__
+    from pretix_emwallet.signals import invalidate_on_version_change
+
+    def cache():
+        ct = CachedTicket.objects.create(order_position=position, provider="emwallet", type="application/vnd.apple.pkpass",
+                                         extension=".pkpass")
+        ct.file.save("t.pkpass", ContentFile(b"x"))
+        return ct
+
+    GlobalSettingsObject().settings.set("emwallet_cache_version", "0.0.1")
+    cache()
+    invalidate_on_version_change()
+    assert not CachedTicket.objects.filter(provider="emwallet").exists()
+    assert GlobalSettingsObject().settings.get("emwallet_cache_version") == __version__
+
+    cache()
+    invalidate_on_version_change()
+    assert CachedTicket.objects.filter(provider="emwallet").count() == 1

@@ -1,10 +1,10 @@
 from django.core.validators import RegexValidator
 from django.db import transaction
-from django.db.models.signals import post_delete, post_save
+from django.db.models.signals import post_delete, post_migrate, post_save
 from django.dispatch import receiver
 from pretix.api.serializers.fields import UploadedFileField
 from pretix.base.models import Event, Event_SettingsStore
-from pretix.base.signals import api_event_settings_fields, register_ticket_outputs
+from pretix.base.signals import api_event_settings_fields, periodic_task, register_ticket_outputs
 from rest_framework import serializers
 
 PLUGIN = "pretix_emwallet"
@@ -68,3 +68,35 @@ def settings_changed(sender, instance, **kwargs):
 def event_changed(sender, instance, created, **kwargs):
     if not created:
         _invalidate_passes(instance)
+
+
+def invalidate_on_version_change():
+    """
+    Cached passes are only rebuilt when they are deleted. A new plugin version changes the layout, so all cached
+    passes of this output are deleted once per version.
+    """
+    from pretix.base.models import CachedCombinedTicket, CachedTicket
+    from pretix.base.settings import GlobalSettingsObject
+
+    from . import __version__
+
+    gs = GlobalSettingsObject()
+    if gs.settings.get("emwallet_cache_version") == __version__:
+        return
+    for ct in CachedTicket.objects.filter(provider=PROVIDER):
+        ct.delete()
+    for ct in CachedCombinedTicket.objects.filter(provider=PROVIDER):
+        ct.delete()
+    gs.settings.set("emwallet_cache_version", __version__)
+
+
+@receiver(post_migrate, dispatch_uid="emwallet_post_migrate")
+def after_migrate(sender, **kwargs):
+    # pretix migrates on every container start (unless AUTOMIGRATE=skip)
+    if getattr(sender, "name", None) == PLUGIN:
+        invalidate_on_version_change()
+
+
+@receiver(periodic_task, dispatch_uid="emwallet_periodic")
+def periodic(sender, **kwargs):
+    invalidate_on_version_change()
